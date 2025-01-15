@@ -146,7 +146,7 @@
 
         function sendForAnalysis(data) {
             $.ajax({
-                url: 'http://127.0.0.1:8000/analyze', // Replace with your API endpoint
+                url: 'https://winequalitydetector.onrender.com/analyze', // Replace with your API endpoint
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ data }),
