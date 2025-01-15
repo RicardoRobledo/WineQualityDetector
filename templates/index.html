@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wine Quality Detector</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f3f4f7, #e1e5ee);
+            font-family: 'Arial', sans-serif;
+        }
+        .container {
+            margin-top: 50px;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.15);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background: white;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0px 15px 25px rgba(0, 0, 0, 0.2);
+        }
+        .upload-btn {
+            font-size: 18px;
+            padding: 12px 24px;
+            transition: background-color 0.3s, transform 0.2s;
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+        }
+        .upload-btn:hover {
+            background: linear-gradient(135deg, #0056b3, #003f7f);
+            transform: scale(1.1);
+        }
+        .modal-content {
+            border-radius: 15px;
+            box-shadow: 0px 8px 30px rgba(0, 0, 0, 0.2);
+        }
+        .result-card {
+            animation: fadeIn 0.6s ease-in-out;
+            border-radius: 10px;
+        }
+        .result-card.good {
+            border-left: 8px solid #28a745;
+            background: linear-gradient(135deg, #e9f7ef, #d4edda);
+        }
+        .result-card.bad {
+            border-left: 8px solid #dc3545;
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+        }
+        .result-card h5 {
+            color: #333;
+            font-weight: bold;
+        }
+        .result-card p {
+            font-size: 16px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+        }
+        .modal-title {
+            font-weight: bold;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card p-4">
+            <h2 class="text-center">🍷 Wine Quality Detector</h2>
+            <p class="text-center text-muted">Upload a CSV file to analyze wine quality</p>
+            <div class="text-center">
+                <input type="file" id="fileInput" accept=".csv" class="form-control mb-3">
+                <button class="btn upload-btn" onclick="processFile()">
+                    <i class="fas fa-upload"></i> Upload and Analyze
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal for Results -->
+        <div class="modal fade" id="resultModal" tabindex="-1" aria-labelledby="resultModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="resultModalLabel">Wine Quality Results</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="resultContainer" class="row"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) {
+                alert('Please select a file before uploading.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const csvContent = e.target.result;
+                const rows = csvContent.split('\n');
+                const headers = rows[0].split(',');
+                const validHeaders = [
+                    'fixed acidity', 'volatile acidity', 'citric acid', 'residual sugar', 'chlorides',
+                    'free sulfur dioxide', 'total sulfur dioxide', 'density', 'pH', 'sulphates', 'alcohol'
+                ];
+
+                if (!validHeaders.every(header => headers.includes(header))) {
+                    alert('Invalid CSV headers. Please provide a valid dataset.');
+                    return;
+                }
+
+                const data = rows.slice(1).filter(row => row.trim() !== '').map(row => {
+                    const values = row.split(',');
+                    const entry = {};
+                    headers.forEach((header, index) => {
+                        entry[header] = values[index];
+                    });
+                    return entry;
+                });
+
+                sendForAnalysis(data);
+            };
+
+            reader.readAsText(file);
+        }
+
+        function sendForAnalysis(data) {
+            $.ajax({
+                url: 'http://127.0.0.1:8000/analyze', // Replace with your API endpoint
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ data }),
+                success: function(response) {
+                    displayResults(response.results);
+                },
+                error: function() {
+                    alert('Error analyzing data. Please try again later.');
+                }
+            });
+        }
+
+        function displayResults(results) {
+            const resultContainer = $('#resultContainer');
+            resultContainer.empty();
+
+            results.forEach((result, index) => {
+                const quality = result === 1 ? 'Good' : 'Bad';
+                const cardClass = result === 1 ? 'good' : 'bad';
+                resultContainer.append(`
+                    <div class="col-md-6 result-card ${cardClass}">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Wine Sample #${index + 1}</h5>
+                                <p class="card-text">Quality: <strong>${quality}</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            });
+
+            $('#resultModal').modal('show');
+        }
+    </script>
+</body>
+</html>
